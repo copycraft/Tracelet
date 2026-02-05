@@ -1,0 +1,6 @@
+[project]
+name = "tracelet"
+version = "0.0.1"
+description = "Its a tracking app that tracks packages cuz dpd tracking sucks"
+requires-python = ">=3.14"
+dependencies = []
