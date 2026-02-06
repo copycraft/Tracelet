@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2>Package Tracking</h2>
+    <div>
+        <a href="/tracking/search" class="btn btn-secondary" style="margin-right: 8px;">Search Package</a>
+        <a href="/tracking/create" class="btn">Create Package</a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <h4>Total Packages</h4>
+        <div class="value">{{ stats.total_packages }}</div>
+    </div>
+    {% for status, count in stats.status_distribution.items() %}
+    <div class="stat-card">
+        <h4>{{ status.replace('_', ' ').title() }}</h4>
+        <div class="value">{{ count }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Filters -->
+<div class="filters">
+    <a href="/tracking" class="filter-btn {% if not filter_status %}active{% endif %}">All</a>
+    <a href="/tracking?status=created" class="filter-btn {% if filter_status == 'created' %}active{% endif %}">Created</a>
+    <a href="/tracking?status=picked_up" class="filter-btn {% if filter_status == 'picked_up' %}active{% endif %}">Picked Up</a>
+    <a href="/tracking?status=in_transit" class="filter-btn {% if filter_status == 'in_transit' %}active{% endif %}">In Transit</a>
+    <a href="/tracking?status=out_for_delivery" class="filter-btn {% if filter_status == 'out_for_delivery' %}active{% endif %}">Out for Delivery</a>
+    <a href="/tracking?status=delivered" class="filter-btn {% if filter_status == 'delivered' %}active{% endif %}">Delivered</a>
+</div>
+
+<!-- Package List -->
+<ul class="package-list">
+{% for pkg in packages %}
+    <li class="package-item">
+        <div class="package-info">
+            <h3><a href="/tracking/{{ pkg.tracking_number }}">{{ pkg.tracking_number }}</a></h3>
+            <p><strong>To:</strong> {{ pkg.details.recipient if pkg.details and pkg.details.recipient else 'N/A' }}</p>
+            <p><strong>Location:</strong> {{ pkg.current_location or 'Unknown' }}</p>
+            <p class="muted">Last updated: {{ pkg.last_updated }}</p>
+        </div>
+        <div>
+            <span class="package-status status-{{ pkg.current_status }}">
+                {{ pkg.current_status.replace('_', ' ').title() }}
+            </span>
+        </div>
+    </li>
+{% else %}
+    <li class="muted">No packages found</li>
+{% endfor %}
+</ul>
+{% endblock %}

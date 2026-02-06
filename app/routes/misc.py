@@ -10,14 +10,32 @@ router = APIRouter()
 
 @router.get("/health", summary="Check API and DB health")
 async def health_check():
+    """
+    Health check endpoint to verify API and database connectivity.
+
+    Returns:
+    - api: Always "ok" if the API is responding
+    - database: "ok" if database is reachable, "unreachable" otherwise
+    """
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         db_status = "ok"
-    except Exception:
+    except Exception as e:
         db_status = "unreachable"
+        return JSONResponse(
+            status_code=503,
+            content={
+                "api": "ok",
+                "database": db_status,
+                "error": str(e)
+            }
+        )
 
-    return JSONResponse({"api": "ok", "database": db_status})
+    return JSONResponse({
+        "api": "ok",
+        "database": db_status
+    })
 
 
 @router.get("/version", summary="Get API version")

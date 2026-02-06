@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Add Event to {{ tracking_number }}</h2>
+
+{% if error %}
+<div class="error">
+    <strong>Error:</strong> {{ error }}
+</div>
+{% endif %}
+
+<form method="post" action="/tracking/{{ tracking_number }}/add-event">
+    <div class="form-group">
+        <label for="status">Status *</label>
+        <select id="status" name="status" required>
+            <option value="picked_up">Picked Up</option>
+            <option value="in_transit">In Transit</option>
+            <option value="sorting_center">Sorting Center</option>
+            <option value="customs">Customs</option>
+            <option value="out_for_delivery">Out for Delivery</option>
+            <option value="delivered">Delivered</option>
+            <option value="failed_delivery">Failed Delivery</option>
+            <option value="exception">Exception</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="location">Location</label>
+        <input type="text" id="location" name="location" placeholder="City, Country">
+    </div>
+
+    <div class="form-group">
+        <label for="actor">Handler/Actor</label>
+        <input type="text" id="actor" name="actor" placeholder="e.g., Driver John, DHL Sorting">
+    </div>
+
+    <div class="form-group">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3" placeholder="Optional notes about this event"></textarea>
+    </div>
+
+    <button type="submit">Add Event</button>
+    <a href="/tracking/{{ tracking_number }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

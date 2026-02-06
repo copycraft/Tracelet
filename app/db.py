@@ -1,3 +1,4 @@
+# app/db.py
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -13,14 +14,34 @@ if not logger.handlers:
     logger.addHandler(ch)
 
 DATABASE_URL = get_database_url()
-logger.info(f"Creating database engine for URL: {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")
-engine = create_engine(DATABASE_URL, echo=settings.SQL_ECHO, future=True)
+logger.info(
+    f"Creating database engine for URL: "
+    f"{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, future=True)
+engine = create_engine(
+    DATABASE_URL,
+    echo=settings.SQL_ECHO,
+    future=True,
+    pool_pre_ping=True,  # Verify connections before using
+    pool_size=5,
+    max_overflow=10
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    future=True
+)
 
 Base = declarative_base()
 
+
 def get_db():
+    """
+    Database session dependency for FastAPI endpoints.
+    """
     db = SessionLocal()
     try:
         logger.debug("DB session created")

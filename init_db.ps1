@@ -38,22 +38,14 @@ do {
     $ready = docker exec $containerName pg_isready -U $dbUser -d $dbName -h localhost
 } until ($ready -like "*accepting connections*")
 
+Write-Output "`n==================================="
 Write-Output "PostgreSQL is ready!"
-
-# --- Create tables if they don't exist ---
-# Example SQL for 'entities' table. Add more tables here as needed.
-$sql = @"
-CREATE TABLE IF NOT EXISTS entities (
-    id SERIAL PRIMARY KEY,
-    type VARCHAR(50) NOT NULL,
-    external_id VARCHAR(50),
-    extra_data JSONB,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-"@
-
-# Execute SQL inside the container
-docker exec -i $containerName psql -U $dbUser -d $dbName -c "$sql"
-
-Write-Output "Database tables ensured!"
-Write-Output "Connect using: Host=localhost, Port=$hostPort, User=$dbUser, Password=$dbPassword, DB=$dbName"
+Write-Output "===================================`n"
+Write-Output "Connection details:"
+Write-Output "  Host: localhost"
+Write-Output "  Port: $hostPort"
+Write-Output "  User: $dbUser"
+Write-Output "  Password: $dbPassword"
+Write-Output "  Database: $dbName"
+Write-Output "`nNext step: Run database migrations with Alembic"
+Write-Output "  python -m alembic upgrade head"

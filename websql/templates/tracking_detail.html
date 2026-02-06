@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2>{{ package.tracking_number }}</h2>
+    <a href="/tracking/{{ package.tracking_number }}/add-event" class="btn">Add Event</a>
+</div>
+
+<div class="card">
+    <h3>Package Information</h3>
+    <table>
+        <tr>
+            <th>Status</th>
+            <td><span class="package-status status-{{ package.status }}">{{ package.status.replace('_', ' ').title() }}</span></td>
+        </tr>
+        <tr>
+            <th>Current Location</th>
+            <td>{{ package.current_location or 'Unknown' }}</td>
+        </tr>
+        <tr>
+            <th>Sender</th>
+            <td>{{ package.package.details.sender if package.package.details else 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Recipient</th>
+            <td>{{ package.package.details.recipient if package.package.details else 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Destination</th>
+            <td>{{ package.package.details.destination if package.package.details else 'N/A' }}</td>
+        </tr>
+        {% if package.package.details and package.package.details.weight_kg %}
+        <tr>
+            <th>Weight</th>
+            <td>{{ package.package.details.weight_kg }} kg</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <th>Created</th>
+            <td>{{ package.package.created_at }}</td>
+        </tr>
+    </table>
+</div>
+
+<h3>Tracking Timeline</h3>
+<div class="timeline">
+    {% for event in package.timeline %}
+    <div class="timeline-item {% if event.status == 'delivered' %}delivered{% endif %}">
+        <div class="timeline-header">
+            <span class="timeline-status">{{ event.status.replace('_', ' ').title() }}</span>
+            <span class="timeline-time">{{ event.timestamp }}</span>
+        </div>
+        {% if event.location %}
+        <div class="timeline-location">📍 {{ event.location }}</div>
+        {% endif %}
+        <div class="timeline-details">
+            {% if event.actor %}By: {{ event.actor }}{% endif %}
+            {% if event.details and event.details.notes %}
+            <br>{{ event.details.notes }}
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

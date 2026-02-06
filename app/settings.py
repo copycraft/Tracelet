@@ -1,3 +1,4 @@
+# app/settings.py
 import logging
 from pydantic_settings import BaseSettings
 
@@ -10,6 +11,7 @@ if not logger.handlers:
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
+
 class Settings(BaseSettings):
     POSTGRES_USER: str = "tracelet_user"
     POSTGRES_PASSWORD: str = "password"
@@ -21,9 +23,14 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
 
+
 settings = Settings()
 
-logger.info(f"Settings loaded: DB={settings.POSTGRES_DB} HOST={settings.POSTGRES_HOST} PORT={settings.POSTGRES_PORT}")
+logger.info(
+    f"Settings loaded: DB={settings.POSTGRES_DB} "
+    f"HOST={settings.POSTGRES_HOST} PORT={settings.POSTGRES_PORT}"
+)
+
 
 def get_database_url() -> str:
     return (

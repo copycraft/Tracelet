@@ -1,3 +1,4 @@
+/* websql/static/style.css */
 body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     background: #0e0e11;
@@ -14,12 +15,18 @@ header {
 header h1 {
     margin: 0;
     font-size: 20px;
+    color: #8aa2ff;
+}
+
+nav {
+    margin-top: 8px;
 }
 
 nav a {
     margin-right: 16px;
     color: #8aa2ff;
     text-decoration: none;
+    font-size: 14px;
 }
 
 nav a:hover {
@@ -28,12 +35,168 @@ nav a:hover {
 
 main {
     padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 h2, h3 {
     margin-top: 0;
+    color: #fff;
 }
 
+/* Cards */
+.card {
+    background: #15151c;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #2a2a35;
+    margin-bottom: 20px;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: #15151c;
+    padding: 16px;
+    border-radius: 6px;
+    border: 1px solid #2a2a35;
+}
+
+.stat-card h4 {
+    margin: 0 0 8px 0;
+    color: #888;
+    font-size: 13px;
+    text-transform: uppercase;
+    font-weight: normal;
+}
+
+.stat-card .value {
+    font-size: 28px;
+    font-weight: bold;
+    color: #8aa2ff;
+}
+
+/* Package List */
+.package-list {
+    list-style: none;
+    padding: 0;
+}
+
+.package-item {
+    background: #15151c;
+    padding: 16px;
+    border-radius: 6px;
+    border: 1px solid #2a2a35;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.package-item:hover {
+    border-color: #8aa2ff;
+}
+
+.package-info h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+}
+
+.package-info p {
+    margin: 4px 0;
+    color: #888;
+    font-size: 14px;
+}
+
+.package-status {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.status-created { background: #2a2a35; color: #888; }
+.status-picked_up { background: #3a3a45; color: #aaa; }
+.status-in_transit { background: #3a4a5a; color: #8aa2ff; }
+.status-sorting_center { background: #3a455a; color: #8aa2ff; }
+.status-out_for_delivery { background: #4a5a3a; color: #a2ff8a; }
+.status-delivered { background: #2a4a2a; color: #5aff5a; }
+.status-failed_delivery { background: #4a2a2a; color: #ff5a5a; }
+.status-exception { background: #5a3a2a; color: #ffa25a; }
+
+/* Timeline */
+.timeline {
+    position: relative;
+    padding-left: 32px;
+    margin: 24px 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #2a2a35;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 24px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -28px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #8aa2ff;
+    border: 2px solid #15151c;
+}
+
+.timeline-item.delivered::before {
+    background: #5aff5a;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.timeline-status {
+    font-weight: 600;
+    color: #fff;
+}
+
+.timeline-time {
+    color: #888;
+    font-size: 13px;
+}
+
+.timeline-location {
+    color: #8aa2ff;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.timeline-details {
+    color: #aaa;
+    font-size: 13px;
+}
+
+/* Trace */
 .trace-container {
     display: flex;
     gap: 32px;
@@ -48,6 +211,116 @@ h2, h3 {
     border: 1px solid #2a2a35;
 }
 
+/* Forms */
+form {
+    max-width: 600px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    color: #ccc;
+    font-size: 14px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    background: #1a1a22;
+    border: 1px solid #2a2a35;
+    border-radius: 4px;
+    color: #eaeaea;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #8aa2ff;
+}
+
+button, .btn {
+    padding: 10px 20px;
+    background: #8aa2ff;
+    color: #0e0e11;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+button:hover, .btn:hover {
+    background: #9ab5ff;
+}
+
+.btn-secondary {
+    background: #2a2a35;
+    color: #eaeaea;
+}
+
+.btn-secondary:hover {
+    background: #3a3a45;
+}
+
+/* Search */
+.search-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 12px;
+    background: #1a1a22;
+    border: 1px solid #2a2a35;
+    border-radius: 4px;
+    color: #eaeaea;
+    font-size: 16px;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #8aa2ff;
+}
+
+/* Filters */
+.filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 6px 12px;
+    background: #2a2a35;
+    color: #eaeaea;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.filter-btn:hover,
+.filter-btn.active {
+    background: #8aa2ff;
+    color: #0e0e11;
+}
+
+/* Lists */
 ul {
     padding-left: 18px;
 }
@@ -56,6 +329,66 @@ li {
     margin-bottom: 6px;
 }
 
+a {
+    color: #8aa2ff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 .muted {
     color: #888;
+}
+
+pre {
+    background: #1a1a22;
+    padding: 16px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 13px;
+    border: 1px solid #2a2a35;
+}
+
+/* Error messages */
+.error {
+    background: #4a2a2a;
+    color: #ff8a8a;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    border: 1px solid #5a3a3a;
+}
+
+.success {
+    background: #2a4a2a;
+    color: #8aff8a;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    border: 1px solid #3a5a3a;
+}
+
+/* Table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #2a2a35;
+}
+
+th {
+    color: #888;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+tr:hover {
+    background: #1a1a22;
 }
