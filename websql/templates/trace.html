@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Trace View</h2>
+
+<p><strong>Entity ID:</strong> {{ entity_id }}</p>
+
+<div class="trace-container">
+    <div class="trace-column">
+        <h3>Ancestors</h3>
+        {% if trace.ancestors %}
+            <ul>
+            {% for a in trace.ancestors %}
+                <li>{{ a }}</li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p class="muted">No ancestors</p>
+        {% endif %}
+    </div>
+
+    <div class="trace-column">
+        <h3>Descendants</h3>
+        {% if trace.descendants %}
+            <ul>
+            {% for d in trace.descendants %}
+                <li>{{ d }}</li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p class="muted">No descendants</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

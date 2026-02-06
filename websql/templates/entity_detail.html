@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Entity</h2>
+
+<pre>{{ entity | tojson(indent=2) }}</pre>
+
+<h3>Trace</h3>
+
+<h4>Ancestors</h4>
+<ul>
+{% for a in trace.ancestors %}
+    <li>{{ a.external_id }}</li>
+{% endfor %}
+</ul>
+
+<h4>Descendants</h4>
+<ul>
+{% for d in trace.descendants %}
+    <li>{{ d.external_id }}</li>
+{% endfor %}
+</ul>
+{% endblock %}

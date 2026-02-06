@@ -1,5 +1,7 @@
+# app/routes/misc.py
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from app.db import engine
 from app.utils import get_api_version
 
@@ -10,7 +12,7 @@ router = APIRouter()
 async def health_check():
     try:
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         db_status = "ok"
     except Exception:
         db_status = "unreachable"

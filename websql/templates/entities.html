@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Entities</h2>
+
+<ul>
+{% for e in entities %}
+    <li>
+        <a href="/entities/{{ e.id }}">{{ e.external_id }}</a>
+        ({{ e.type }})
+    </li>
+{% endfor %}
+</ul>
+{% endblock %}

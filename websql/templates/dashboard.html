@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>System Status</h2>
+
+<p><strong>Status:</strong> {{ health.status }}</p>
+<p><strong>Database:</strong> {{ health.database }}</p>
+<p><strong>Version:</strong> {{ version.version }}</p>
+{% endblock %}
