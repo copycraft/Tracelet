@@ -1,4 +1,5 @@
-# app/main.py
+# app / main
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import router as api_router

@@ -1,4 +1,5 @@
-# app/routes/misc.py
+# app / routes / misc
+
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from sqlalchemy import text

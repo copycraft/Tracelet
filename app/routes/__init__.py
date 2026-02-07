@@ -1,4 +1,5 @@
-# app/routes/__init__.py
+# app / routes / __init__.py
+
 from fastapi import APIRouter
 
 from . import entities, events, links, trace, misc, tracking  # <-- add tracking

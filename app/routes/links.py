@@ -1,4 +1,5 @@
-# app/routes/links.py
+# app / routes / links
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError

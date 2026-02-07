@@ -1,3 +1,5 @@
+# app / routes / entities
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError

@@ -1,4 +1,4 @@
-# app/settings.py
+# app / settings
 import logging
 from pydantic_settings import BaseSettings
 
