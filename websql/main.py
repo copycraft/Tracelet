@@ -1,4 +1,5 @@
-# websql/main.py
+# websql / main
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from websql.templating import templates

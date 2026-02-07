@@ -1,3 +1,5 @@
+# websql / settings
+
 from pydantic import BaseModel
 import os
 

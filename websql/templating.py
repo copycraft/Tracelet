@@ -1,3 +1,5 @@
+# websql / templating
+
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 

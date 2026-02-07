@@ -1,4 +1,4 @@
-# websql/api.py
+# websql / api
 import requests
 from urllib.parse import urljoin
 from websql.settings import settings

@@ -1,276 +1,175 @@
 # app/routes/tracking.py
 from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List, Optional
-from app import models, schemas, db
+from app import db, models, schemas
 
-router = APIRouter(tags=["Tracking"])
+router = APIRouter()
 
-
-@router.post("/package", response_model=schemas.EntityRead, status_code=201)
-def create_package(
-        tracking_number: str,
-        sender: str,
-        recipient: str,
-        destination: str,
-        weight_kg: Optional[float] = None,
-        extra_data: Optional[dict] = None,
-        db: Session = Depends(db.get_db)
-):
-    """
-    Create a new package for tracking.
-
-    This is a convenience endpoint that creates an entity of type 'package'.
-    """
-    # Check if tracking number already exists
-    existing = (
-        db.query(models.Entity)
-        .filter(models.Entity.external_id == tracking_number)
-        .first()
-    )
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Tracking number {tracking_number} already exists"
-        )
-
-    # Prepare package data
-    package_data = {
-        "sender": sender,
-        "recipient": recipient,
-        "destination": destination,
+def serialize_event(ev: models.Event) -> Dict[str, Any]:
+    return {
+        "id": str(ev.id),
+        "entity_id": str(ev.entity_id),
+        "status": ev.event_type,
+        "timestamp": ev.timestamp.isoformat() if getattr(ev, "timestamp", None) else None,
+        "location": ev.location,
+        "actor": ev.actor,
+        "details": ev.payload or None,
     }
-    if weight_kg:
-        package_data["weight_kg"] = weight_kg
-    if extra_data:
-        package_data.update(extra_data)
 
-    # Create package entity
-    db_package = models.Entity(
+@router.post("/package", status_code=201)
+def create_package(payload: dict, db: Session = Depends(db.get_db)):
+    """
+    Create a package entity (type=package) and an initial 'created' event.
+    Expects payload containing at least:
+      - tracking_number (external id)
+      - sender, recipient, destination (optional fields)
+      - weight_kg (optional)
+    """
+    tracking_number = payload.get("tracking_number") or payload.get("trackingNumber") or payload.get("external_id")
+    if not tracking_number:
+        raise HTTPException(status_code=400, detail="tracking_number is required")
+
+    # check existing
+    existing = db.query(models.Entity).filter(models.Entity.external_id == tracking_number).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Entity with tracking_number '{tracking_number}' already exists")
+
+    # create entity
+    db_entity = models.Entity(
         type="package",
         external_id=tracking_number,
-        extra_data=package_data
+        extra_data={
+            "sender": payload.get("sender"),
+            "recipient": payload.get("recipient"),
+            "destination": payload.get("destination"),
+            "weight_kg": payload.get("weight_kg"),
+        },
     )
-
-    db.add(db_package)
+    db.add(db_entity)
     try:
         db.commit()
-        db.refresh(db_package)
+        db.refresh(db_entity)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create package: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create entity: {str(e)}")
 
-    # Create initial "created" event
-    db_event = models.Event(
-        entity_id=db_package.id,
-        event_type="created",
-        location=None,
-        actor="system",
-        payload={"tracking_number": tracking_number}
-    )
-    db.add(db_event)
-    db.commit()
-
-    return db_package
-
-
-@router.post("/package/{tracking_number}/event", response_model=schemas.EventRead, status_code=201)
-def add_package_event(
-        tracking_number: str,
-        status: schemas.PackageStatus,
-        location: Optional[str] = None,
-        actor: Optional[str] = None,
-        notes: Optional[str] = None,
-        extra_data: Optional[dict] = None,
-        db: Session = Depends(db.get_db)
-):
-    """
-    Add a status update event to a package.
-
-    Example statuses: picked_up, in_transit, sorting_center,
-                      out_for_delivery, delivered, etc.
-    """
-    # Find package
-    package = (
-        db.query(models.Entity)
-        .filter(
-            models.Entity.external_id == tracking_number,
-            models.Entity.type == "package"
-        )
-        .first()
-    )
-
-    if not package:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Package with tracking number {tracking_number} not found"
-        )
-
-    # Prepare event payload
-    payload = {}
-    if notes:
-        payload["notes"] = notes
-    if extra_data:
-        payload.update(extra_data)
-
-    # Create event
-    db_event = models.Event(
-        entity_id=package.id,
-        event_type=status.value,
-        location=location,
-        actor=actor,
-        payload=payload if payload else None
-    )
-
-    db.add(db_event)
+    # create an initial event
     try:
+        db_event = models.Event(
+            entity_id=db_entity.id,
+            event_type="created",
+            location=None,
+            actor=payload.get("creator") or "system",
+            payload={"note": "Package created", "meta": payload}
+        )
+        db.add(db_event)
         db.commit()
         db.refresh(db_event)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to add event: {str(e)}")
+        # if event creation failed, we may still return created entity, but inform client
+        raise HTTPException(status_code=500, detail=f"Entity created but failed to create initial event: {str(e)}")
 
-    return db_event
+    # Build return structure similar to what the web UI expects
+    package = {
+        "tracking_number": tracking_number,
+        "status": "created",
+        "current_location": None,
+        "package": {
+            "details": {
+                "sender": db_entity.extra_data.get("sender"),
+                "recipient": db_entity.extra_data.get("recipient"),
+                "destination": db_entity.extra_data.get("destination"),
+                "weight_kg": db_entity.extra_data.get("weight_kg"),
+            },
+            "created_at": getattr(db_entity, "created_at", None).isoformat() if getattr(db_entity, "created_at", None) else None
+        },
+        "timeline": [serialize_event(db_event)]
+    }
+    return package
 
-
-@router.get("/track/{tracking_number}", response_model=schemas.TrackingResponse)
-def track_package(
-        tracking_number: str,
-        db: Session = Depends(db.get_db)
-):
+@router.get("/track/{tracking_number}")
+def track_package(tracking_number: str, db: Session = Depends(db.get_db)):
     """
-    Track a package by its tracking number.
-
-    Returns the complete timeline of all status updates with timestamps and locations.
+    Return package details + timeline for a given tracking_number (external_id).
     """
-    # Find package by external_id (tracking number)
-    package = (
-        db.query(models.Entity)
-        .filter(
-            models.Entity.external_id == tracking_number,
-            models.Entity.type == "package"
-        )
-        .first()
-    )
+    entity = db.query(models.Entity).filter_by(external_id=tracking_number).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Package not found")
 
-    if not package:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Tracking number {tracking_number} not found"
-        )
-
-    # Get all events for this package ordered by timestamp
     events = (
         db.query(models.Event)
-        .filter(models.Event.entity_id == package.id)
+        .filter(models.Event.entity_id == entity.id)
         .order_by(models.Event.timestamp)
         .all()
     )
 
-    # Build response
-    return schemas.TrackingResponse(
-        tracking_number=tracking_number,
-        package=schemas.PackageDetails(
-            id=package.id,
-            type=package.type,
-            details=package.extra_data,
-            created_at=package.created_at
-        ),
-        status=schemas.PackageStatus(events[-1].event_type) if events else schemas.PackageStatus.CREATED,
-        current_location=events[-1].location if events else None,
-        timeline=[
-            schemas.TimelineEvent(
-                status=schemas.PackageStatus(event.event_type),
-                location=event.location,
-                timestamp=event.timestamp,
-                actor=event.actor,
-                details=event.payload
-            )
-            for event in events
-        ]
-    )
+    timeline = [serialize_event(e) for e in events]
+    latest = timeline[-1] if timeline else None
+    package = {
+        "tracking_number": tracking_number,
+        "status": latest["status"] if latest else "created",
+        "current_location": latest["location"] if latest else None,
+        "package": {
+            "details": {
+                "sender": entity.extra_data.get("sender") if entity.extra_data else None,
+                "recipient": entity.extra_data.get("recipient") if entity.extra_data else None,
+                "destination": entity.extra_data.get("destination") if entity.extra_data else None,
+                "weight_kg": entity.extra_data.get("weight_kg") if entity.extra_data else None,
+            },
+            "created_at": getattr(entity, "created_at", None).isoformat() if getattr(entity, "created_at", None) else None
+        },
+        "timeline": timeline
+    }
+    return package
 
-
-@router.get("/packages", response_model=List[dict])
-def list_packages(
-        status: Optional[schemas.PackageStatus] = None,
-        skip: int = Query(0, ge=0),
-        limit: int = Query(100, ge=1, le=500),
-        db: Session = Depends(db.get_db)
-):
+@router.get("/packages")
+def list_packages(status: Optional[str] = None, skip: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=1000), db: Session = Depends(db.get_db)):
     """
-    List all packages, optionally filtered by current status.
+    Basic packages listing. If `status` provided, filter by the latest event.status for each package.
+    Note: this is a simple implementation; for large datasets you should move to optimized queries.
     """
-    # Get all packages
-    query = db.query(models.Entity).filter(models.Entity.type == "package")
-    packages = query.offset(skip).limit(limit).all()
+    q = db.query(models.Entity).filter(models.Entity.type == "package").order_by(models.Entity.created_at.desc()).offset(skip).limit(limit)
+    entities = q.all()
 
-    result = []
-    for package in packages:
-        # Get latest event for each package
-        latest_event = (
+    out = []
+    for e in entities:
+        events = (
             db.query(models.Event)
-            .filter(models.Event.entity_id == package.id)
-            .order_by(models.Event.timestamp.desc())
-            .first()
+            .filter(models.Event.entity_id == e.id)
+            .order_by(models.Event.timestamp)
+            .all()
         )
-
-        current_status = latest_event.event_type if latest_event else "created"
-
-        # Filter by status if provided
-        if status and current_status != status.value:
+        latest = events[-1] if events else None
+        current_status = latest.event_type if latest else "created"
+        if status and status != current_status:
             continue
-
-        result.append({
-            "tracking_number": package.external_id,
-            "id": package.id,
+        out.append({
+            "tracking_number": e.external_id,
+            "details": {
+                "recipient": e.extra_data.get("recipient") if e.extra_data else None,
+                "sender": e.extra_data.get("sender") if e.extra_data else None,
+            },
             "current_status": current_status,
-            "current_location": latest_event.location if latest_event else None,
-            "created_at": package.created_at,
-            "last_updated": latest_event.timestamp if latest_event else package.created_at,
-            "details": package.extra_data
+            "current_location": latest.location if latest else None,
+            "last_updated": getattr(latest, "timestamp", None).isoformat() if latest and getattr(latest, "timestamp", None) else None
         })
-
-    return result
-
+    return out
 
 @router.get("/stats")
-def get_tracking_stats(db: Session = Depends(db.get_db)):
+def tracking_stats(db: Session = Depends(db.get_db)):
     """
-    Get statistics about packages in the system.
+    Simple stats for dashboard: total_packages and distribution by latest status.
     """
-    from sqlalchemy import func, distinct
+    total = db.query(models.Entity).filter(models.Entity.type == "package").count()
+    # naive aggregation: fetch packages and compute status distribution
+    entities = db.query(models.Entity).filter(models.Entity.type == "package").all()
+    dist = {}
+    for e in entities:
+        latest_ev = db.query(models.Event).filter(models.Event.entity_id == e.id).order_by(models.Event.timestamp.desc()).first()
+        status = latest_ev.event_type if latest_ev else "created"
+        dist[status] = dist.get(status, 0) + 1
 
-    # Total packages
-    total_packages = db.query(models.Entity).filter(models.Entity.type == "package").count()
-
-    # Get status distribution
-    # This is a bit complex - we need to get the latest event for each package
-    subquery = (
-        db.query(
-            models.Event.entity_id,
-            func.max(models.Event.timestamp).label('max_timestamp')
-        )
-        .group_by(models.Event.entity_id)
-        .subquery()
-    )
-
-    latest_events = (
-        db.query(models.Event.event_type, func.count(models.Event.entity_id))
-        .join(
-            subquery,
-            (models.Event.entity_id == subquery.c.entity_id) &
-            (models.Event.timestamp == subquery.c.max_timestamp)
-        )
-        .group_by(models.Event.event_type)
-        .all()
-    )
-
-    status_distribution = {status: count for status, count in latest_events}
-
-    return {
-        "total_packages": total_packages,
-        "status_distribution": status_distribution,
-        "total_events": db.query(models.Event).count()
-    }
+    return {"total_packages": total, "status_distribution": dist}

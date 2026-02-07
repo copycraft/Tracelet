@@ -1,3 +1,5 @@
+#websql / routes / dashboard
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from websql.api import api_get
@@ -6,7 +8,6 @@ router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
-    # delayed import to avoid circular import
     from websql.main import templates
 
     health = api_get("/health")
@@ -18,5 +19,7 @@ def dashboard(request: Request):
             "request": request,
             "health": health,
             "version": version,
+            "create_entity_url": "/entities/create",
+            "create_package_url": "/tracking/create",
         },
     )

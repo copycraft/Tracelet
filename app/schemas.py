@@ -1,5 +1,4 @@
-# app/schemas.py
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, root_validator
 from uuid import UUID
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -19,7 +18,7 @@ class PackageStatus(str, Enum):
     DELIVERED = "delivered"
     FAILED_DELIVERY = "failed_delivery"
     RETURNED = "returned"
-    EXCEPTION = "exception"  # For issues like damaged package, etc.
+    EXCEPTION = "exception"
 
 
 class EntityType(str, Enum):
@@ -35,11 +34,33 @@ class EntityType(str, Enum):
 class EntityBase(BaseModel):
     type: EntityType
     external_id: Optional[str] = None
-    extra_data: Optional[Dict[str, Any]] = None
+    extra_data: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        extra = "allow"  # allow name, id, scanner junk
 
 
-class EntityCreate(EntityBase):
-    external_id: str  # Make required for tracking numbers
+class EntityCreate(BaseModel):
+    type: EntityType
+    external_id: Optional[str] = None
+    id: Optional[str] = None
+    name: Optional[str] = None
+    extra_data: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        extra = "allow"
+
+    @root_validator(pre=True)
+    def set_external_id(cls, values):
+        if not values.get("external_id") and values.get("id"):
+            values["external_id"] = values["id"]
+        if not values.get("external_id"):
+            raise ValueError("external_id or id is required")
+        if values.get("name"):
+            values.setdefault("extra_data", {})
+            values["extra_data"]["name"] = values.pop("name")
+        return values
+
 
 
 class EntityUpdate(BaseModel):
@@ -105,7 +126,7 @@ class EntityLinkRead(EntityLinkBase):
 
 
 # ----------------------
-# Tracking Schemas (convenience schemas for the tracking endpoint)
+# Tracking Schemas
 # ----------------------
 class PackageDetails(BaseModel):
     id: UUID
