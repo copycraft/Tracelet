@@ -1,11 +1,21 @@
-# app / routes / entities
+# app/routes/entities.py
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from uuid import UUID
 from typing import List, Optional
 from app import models, schemas, db
+
+# ---------------------------
+# Setup proper logger
+# ---------------------------
+logger = logging.getLogger("tracelet")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+)
 
 router = APIRouter(tags=["Entities"])
 
@@ -17,48 +27,66 @@ def create_entity(
 ):
     """
     Create a new entity (package, shipment, item, or container).
+    Defensive and verbose error logging to make debugging easier.
     """
+    try:
+        # Normalize/validate type into a plain string to store in DB
+        if isinstance(entity.type, str):
+            type_value = entity.type.lower()
+            try:
+                type_value = schemas.EntityType(type_value).value
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Invalid entity type '{entity.type}'")
+        else:
+            # Pydantic likely already converted to Enum
+            try:
+                type_value = entity.type.value
+            except Exception:
+                type_value = str(entity.type)
 
-    # Ensure entity type is valid Enum
-    if isinstance(entity.type, str):
-        try:
-            entity.type = schemas.EntityType(entity.type.lower())
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid entity type '{entity.type}'")
+        # Normalize external_id
+        external_id = (entity.external_id or str(entity.id) or "").strip()
+        if not external_id:
+            raise HTTPException(status_code=400, detail="external_id (or id) is required")
 
-    # Check if external_id already exists
-    existing = db.query(models.Entity).filter(models.Entity.external_id == entity.external_id).first()
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Entity with external_id '{entity.external_id}' already exists"
+        # Ensure no existing entity with same external_id
+        existing = db.query(models.Entity).filter(models.Entity.external_id == external_id).first()
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Entity with external_id '{external_id}' already exists"
+            )
+
+        # Create DB entity
+        db_entity = models.Entity(
+            type=type_value,
+            external_id=external_id,
+            extra_data=entity.extra_data or {},
         )
 
-    db_entity = models.Entity(
-        type=entity.type.value,         # Enum value stored in DB
-        external_id=entity.external_id,
-        extra_data=entity.extra_data or {},  # Ensure extra_data is dict
-    )
-
-    db.add(db_entity)
-
-    try:
+        db.add(db_entity)
         db.commit()
         db.refresh(db_entity)
-    except IntegrityError as e:
+
+        logger.info(f"Created entity {db_entity.id} ({external_id}) of type '{type_value}'")
+        return db_entity
+
+    except IntegrityError:
         db.rollback()
+        logger.exception("IntegrityError creating entity")
         raise HTTPException(
             status_code=400,
-            detail=f"Database constraint violation: {str(e.orig)}"
+            detail="Database integrity error when creating entity"
         )
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
+        logger.exception("Unhandled exception creating entity")
         raise HTTPException(
             status_code=500,
-            detail=f"Error creating entity: {str(e)}"
+            detail="Internal server error creating entity"
         )
-
-    return db_entity
 
 
 @router.get("/", response_model=List[schemas.EntityRead])
@@ -71,7 +99,7 @@ def list_entities(
 ):
     qset = db.query(models.Entity)
 
-    # Convert type string to Enum if provided
+    # Filter by type if provided
     if type:
         try:
             type_enum = schemas.EntityType(type.lower())

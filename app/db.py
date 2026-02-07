@@ -1,19 +1,27 @@
-# app / db
+# app/db.py
 
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.settings import get_database_url, settings
 
+# ---------------------------
+# Setup logger
+# ---------------------------
 logger = logging.getLogger("tracelet.db")
 if not logger.handlers:
     logger.setLevel(logging.INFO)
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
+# ---------------------------
+# Database URL & Engine
+# ---------------------------
 DATABASE_URL = get_database_url()
 logger.info(
     f"Creating database engine for URL: "
@@ -24,11 +32,14 @@ engine = create_engine(
     DATABASE_URL,
     echo=settings.SQL_ECHO,
     future=True,
-    pool_pre_ping=True,  # Verify connections before using
+    pool_pre_ping=True,  # Check connections before using
     pool_size=5,
     max_overflow=10
 )
 
+# ---------------------------
+# Session and Base
+# ---------------------------
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -38,10 +49,12 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-
+# ---------------------------
+# Dependency for FastAPI
+# ---------------------------
 def get_db():
     """
-    Database session dependency for FastAPI endpoints.
+    Provide a SQLAlchemy session for FastAPI endpoints.
     """
     db = SessionLocal()
     try:
