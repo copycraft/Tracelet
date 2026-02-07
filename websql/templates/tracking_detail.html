@@ -3,7 +3,10 @@
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
     <h2>{{ package.tracking_number }}</h2>
-    <a href="/tracking/{{ package.tracking_number }}/add-event" class="btn">Add Event</a>
+    <div>
+        <a href="/tracking/{{ package.tracking_number }}/add-event" class="btn" style="margin-right: 8px;">Add Event</a>
+        <a href="/tracking/{{ package.tracking_number }}/download-pdf" class="btn btn-primary">Download PDF</a>
+    </div>
 </div>
 
 <div class="card">
