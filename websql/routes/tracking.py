@@ -2,14 +2,8 @@
 
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from websql.api import api_get, api_post
+from websql.api import api_get, api_post, api_stream
 from websql.main import templates
-from PIL import Image
-
-import io
-import qrcode
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
 
 router = APIRouter(prefix="/tracking", tags=["Tracking UI"])
 
@@ -64,24 +58,24 @@ def create_package(
     weight_kg: float = Form(None),
 ):
     try:
-        # ✅ Match backend schema: external_id, type, extra_data
-        api_post("/entities", {
+        entity_payload = {
             "external_id": tracking_number,
             "type": "package",
             "extra_data": {
-                "label": f"Package {tracking_number}"
-            }
-        })
-
-        api_post(f"/events/{tracking_number}", {
-            "event_type": "created",
-            "data": {
                 "sender": sender,
                 "recipient": recipient,
                 "destination": destination,
-                "weight_kg": weight_kg,
+                "weight_kg": weight_kg
             }
-        })
+        }
+        entity = api_post("/entities", entity_payload)
+
+        event_payload = {
+            "entity_id": entity["id"],
+            "event_type": "created",
+            "payload": {"creator": "web-ui"}
+        }
+        api_post("/events", event_payload)
 
         return RedirectResponse(url=f"/tracking/{tracking_number}", status_code=303)
 
@@ -100,7 +94,10 @@ def track_package(tracking_number: str, request: Request):
 
 @router.get("/{tracking_number}/add-event", response_class=HTMLResponse)
 def add_event_form(tracking_number: str, request: Request):
-    return templates.TemplateResponse("tracking_add_event.html", {"request": request, "tracking_number": tracking_number, "error": None})
+    return templates.TemplateResponse(
+        "tracking_add_event.html",
+        {"request": request, "tracking_number": tracking_number, "error": None}
+    )
 
 
 @router.post("/{tracking_number}/add-event", response_class=HTMLResponse)
@@ -113,14 +110,29 @@ def add_event(
     notes: str = Form(None)
 ):
     try:
-        api_post(f"/events/{tracking_number}", {
-            "event_type": status,
-            "data": {
-                "location": location,
-                "actor": actor,
-                "notes": notes,
-            }
-        })
+        entity = api_get(f"/entities/external/{tracking_number}")
+    except Exception as e:
+        return templates.TemplateResponse(
+            "tracking_add_event.html",
+            {"request": request, "tracking_number": tracking_number, "error": f"Package not found: {e}"},
+        )
+
+    if not entity or "id" not in entity:
+        return templates.TemplateResponse(
+            "tracking_add_event.html",
+            {"request": request, "tracking_number": tracking_number, "error": "Package not found"},
+        )
+
+    payload = {
+        "entity_id": entity["id"],
+        "event_type": status,
+        "location": location,
+        "actor": actor,
+        "payload": {"notes": notes},
+    }
+
+    try:
+        api_post("/events", payload)
         return RedirectResponse(url=f"/tracking/{tracking_number}", status_code=303)
     except Exception as e:
         return templates.TemplateResponse(
@@ -129,62 +141,21 @@ def add_event(
         )
 
 
-# ---------------- PDF Download with QR Code ----------------
-
+# ---------------- PDF Download ----------------
 @router.get("/{tracking_number}/download-pdf")
 def download_package_pdf(tracking_number: str):
-    package = api_get(f"/tracking/track/{tracking_number}")
+    """
+    Calls the dedicated backend PDF endpoint in tracking_pdf router.
+    """
+    try:
+        # This hits the backend endpoint: /tracking_pdf/download-pdf/{tracking_number}
+        pdf_response = api_stream(f"/tracking_pdf/download-pdf/{tracking_number}")
 
-    # Access created_at correctly
-    created_at = package['package']['created_at']
-    qr_data = f"{tracking_number} | {created_at}"
+        return StreamingResponse(
+            pdf_response,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={tracking_number}.pdf"}
+        )
 
-    # Generate QR code using QRCode class
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(qr_data)
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")  # PIL Image
-
-    # Save QR code to a temporary buffer
-    qr_buffer = io.BytesIO()
-    qr_img.save(qr_buffer, format="PNG")
-    qr_buffer.seek(0)
-    qr_pil = Image.open(qr_buffer)
-
-    # Create PDF
-    pdf_buffer = io.BytesIO()
-    c = canvas.Canvas(pdf_buffer, pagesize=A4)
-    width, height = A4
-
-    # Add package info
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, height - 50, f"Package: {tracking_number}")
-    c.setFont("Helvetica", 12)
-    c.drawString(50, height - 80, f"Created at: {created_at}")
-    c.drawString(50, height - 110, f"Status: {package['status']}")
-    c.drawString(50, height - 140, f"Current location: {package.get('current_location', 'Unknown')}")
-
-    details = package.get('package', {}).get('details', {})
-    c.drawString(50, height - 170, f"Sender: {details.get('sender', 'N/A')}")
-    c.drawString(50, height - 200, f"Recipient: {details.get('recipient', 'N/A')}")
-    c.drawString(50, height - 230, f"Destination: {details.get('destination', 'N/A')}")
-    if 'weight_kg' in details:
-        c.drawString(50, height - 260, f"Weight: {details['weight_kg']} kg")
-
-    # Draw QR code image on PDF
-    c.drawInlineImage(qr_pil, 400, height - 300, 150, 150)
-
-    c.showPage()
-    c.save()
-    pdf_buffer.seek(0)
-
-    return StreamingResponse(
-        pdf_buffer,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={tracking_number}.pdf"}
-    )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download PDF: {str(e)}")

@@ -138,16 +138,20 @@ class PackageDetails(BaseModel):
 
 
 class TimelineEvent(BaseModel):
-    status: PackageStatus
+    # loosened to str to match stored event_type strings and be forgiving
+    status: str
     location: Optional[str]
-    timestamp: datetime
+    timestamp: Optional[datetime]
     actor: Optional[str]
     details: Optional[Dict[str, Any]]
 
 
 class TrackingResponse(BaseModel):
     tracking_number: str
-    package: PackageDetails
-    status: PackageStatus
+    # package structure can vary by frontend; accept a flexible dict
+    package: Dict[str, Any]
+    # status also accept string for flexibility
+    status: str
     current_location: Optional[str]
     timeline: List[TimelineEvent]
+

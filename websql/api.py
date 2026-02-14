@@ -36,3 +36,14 @@ def api_delete(path: str):
     r = requests.delete(url)
     r.raise_for_status()
     return r.json()
+
+def api_stream(path: str):
+    """
+    Stream binary content (like PDFs) from the backend API.
+    Returns a file-like object suitable for StreamingResponse.
+    """
+    url = _build_url(path)
+    r = requests.get(url, stream=True)
+    r.raise_for_status()
+    return r.raw  # file-like object
+

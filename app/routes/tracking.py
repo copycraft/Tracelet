@@ -6,14 +6,15 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from app import db, models, schemas
 
-router = APIRouter()
+router = APIRouter(tags=["Tracking"])
 
 def serialize_event(ev: models.Event) -> Dict[str, Any]:
+    # Return timestamp as datetime (Pydantic will handle serialization)
     return {
         "id": str(ev.id),
         "entity_id": str(ev.entity_id),
         "status": ev.event_type,
-        "timestamp": ev.timestamp.isoformat() if getattr(ev, "timestamp", None) else None,
+        "timestamp": getattr(ev, "timestamp", None),
         "location": ev.location,
         "actor": ev.actor,
         "details": ev.payload or None,
@@ -48,30 +49,27 @@ def create_package(payload: dict, db: Session = Depends(db.get_db)):
             "weight_kg": payload.get("weight_kg"),
         },
     )
-    db.add(db_entity)
-    try:
-        db.commit()
-        db.refresh(db_entity)
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create entity: {str(e)}")
 
-    # create an initial event
+    # Create entity and initial event in single transaction
     try:
-        db_event = models.Event(
-            entity_id=db_entity.id,
-            event_type="created",
-            location=None,
-            actor=payload.get("creator") or "system",
-            payload={"note": "Package created", "meta": payload}
-        )
-        db.add(db_event)
-        db.commit()
+        with db.begin():
+            db.add(db_entity)
+            # flush so db_entity.id is available for event
+            db.flush()
+            db_event = models.Event(
+                entity_id=db_entity.id,
+                event_type="created",
+                location=None,
+                actor=payload.get("creator") or "system",
+                payload={"note": "Package created", "meta": payload}
+            )
+            db.add(db_event)
+        # refresh instances after successful commit
+        db.refresh(db_entity)
         db.refresh(db_event)
     except Exception as e:
-        db.rollback()
-        # if event creation failed, we may still return created entity, but inform client
-        raise HTTPException(status_code=500, detail=f"Entity created but failed to create initial event: {str(e)}")
+        # db.begin() will rollback automatically on exception
+        raise HTTPException(status_code=500, detail=f"Failed to create package and initial event: {str(e)}")
 
     # Build return structure similar to what the web UI expects
     package = {
@@ -85,7 +83,7 @@ def create_package(payload: dict, db: Session = Depends(db.get_db)):
                 "destination": db_entity.extra_data.get("destination"),
                 "weight_kg": db_entity.extra_data.get("weight_kg"),
             },
-            "created_at": getattr(db_entity, "created_at", None).isoformat() if getattr(db_entity, "created_at", None) else None
+            "created_at": getattr(db_entity, "created_at", None)
         },
         "timeline": [serialize_event(db_event)]
     }
@@ -120,7 +118,7 @@ def track_package(tracking_number: str, db: Session = Depends(db.get_db)):
                 "destination": entity.extra_data.get("destination") if entity.extra_data else None,
                 "weight_kg": entity.extra_data.get("weight_kg") if entity.extra_data else None,
             },
-            "created_at": getattr(entity, "created_at", None).isoformat() if getattr(entity, "created_at", None) else None
+            "created_at": getattr(entity, "created_at", None)
         },
         "timeline": timeline
     }
@@ -155,7 +153,7 @@ def list_packages(status: Optional[str] = None, skip: int = Query(0, ge=0), limi
             },
             "current_status": current_status,
             "current_location": latest.location if latest else None,
-            "last_updated": getattr(latest, "timestamp", None).isoformat() if latest and getattr(latest, "timestamp", None) else None
+            "last_updated": getattr(latest, "timestamp", None)
         })
     return out
 

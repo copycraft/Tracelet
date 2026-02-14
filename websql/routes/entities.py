@@ -35,8 +35,36 @@ def create_entity(request: Request, external_id: str = Form(...), type: str = Fo
 
 @router.get("/{entity_id}", response_class=HTMLResponse)
 def entity_detail(entity_id: str, request: Request):
-    entity = api_get(f"/entities/external/{entity_id}")
-    events = api_get(f"/events/entity/{entity_id}")
-    trace = api_get(f"/trace/{entity_id}")
-    tree = api_get(f"/trace/{entity_id}/tree")
-    return templates.TemplateResponse("entity_detail.html", {"request": request, "entity": entity, "events": events, "trace": trace, "tree": tree})
+    """
+    entity_id here is the external_id shown in the UI. We first resolve it to the backend entity (UUID),
+    then use that UUID when calling events/trace endpoints (they expect UUID).
+    """
+    try:
+        entity = api_get(f"/entities/external/{entity_id}")
+    except Exception as e:
+        # entity not found or backend error
+        return templates.TemplateResponse(
+            "entity_detail.html",
+            {"request": request, "entity": None, "events": [], "trace": None, "tree": None, "error": str(e)},
+        )
+
+    try:
+        entity_uuid = entity.get("id")
+        events = api_get(f"/events/entity/{entity_uuid}") if entity_uuid else []
+    except Exception:
+        events = []
+
+    try:
+        trace = api_get(f"/trace/{entity_uuid}") if entity_uuid else None
+    except Exception:
+        trace = None
+
+    try:
+        tree = api_get(f"/trace/{entity_uuid}/tree") if entity_uuid else None
+    except Exception:
+        tree = None
+
+    return templates.TemplateResponse(
+        "entity_detail.html",
+        {"request": request, "entity": entity, "events": events, "trace": trace, "tree": tree, "error": None},
+    )
