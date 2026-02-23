@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: tracelet-db
+    environment:
+      POSTGRES_USER: tracelet_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: tracelet_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - tracelet_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "tracelet_user"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    container_name: tracelet-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://tracelet_user:password@db:5432/tracelet_db"
+      TRACELET_API: "http://127.0.0.1:8000"
+    ports:
+      - "8000:8000"
+      - "8076:8076"
+    command: ["python", "-u", "start.py"]
+
+volumes:
+  tracelet_db_data:
