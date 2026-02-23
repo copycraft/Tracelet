@@ -19,4 +19,4 @@ COPY . .
 # Expose both ports
 EXPOSE 8000 8076
 
-CMD ["python", "-u", "start.py"]
+CMD ["python", "-u", "main.py"]

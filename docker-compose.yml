@@ -30,7 +30,7 @@ services:
     ports:
       - "8000:8000"
       - "8076:8076"
-    command: ["python", "-u", "start.py"]
+    command: ["python", "-u", "main.py"]
 
 volumes:
   tracelet_db_data:
