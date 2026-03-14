@@ -86,6 +86,8 @@ What the script does:
 
     Creates required tables (idempotent CREATE TABLE IF NOT EXISTS) so the API won't error with "relation does not exist".
 
+Now just run the create_tables.py while the db is running
+
 Run the API (development)
 
 After the DB is initialized, start the server with uv (uvicorn wrapper) or uvicorn:
