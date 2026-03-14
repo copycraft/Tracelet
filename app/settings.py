@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "tracelet_user"
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "tracelet_db"
-    POSTGRES_HOST: str = "localhost"
+    DATABASE_URL: str = "postgresql://tracelet_user:password@db:5432/tracelet_db"
     POSTGRES_PORT: int = 5432
     SQL_ECHO: bool = False
 
